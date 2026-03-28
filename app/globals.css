@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Fraunces:wght@600;700;800&display=swap');
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #faf9f6;
+  color: #1a1714;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar hide */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* PIN input styling */
+.pin-input {
+  width: 52px;
+  height: 56px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  border: 1.5px solid #e2ddd4;
+  border-radius: 12px;
+  background: white;
+  transition: border-color 0.2s;
+}
+.pin-input:focus {
+  outline: none;
+  border-color: #0d7377;
+}
