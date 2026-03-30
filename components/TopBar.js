@@ -1,6 +1,6 @@
 'use client'
 
-export default function TopBar({ title, subtitle, initials, onLogout }) {
+export default function TopBar({ title, subtitle, initials, onLogout, rightExtra }) {
   return (
     <div className="bg-brand-navy px-5 py-4 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-3">
@@ -10,13 +10,16 @@ export default function TopBar({ title, subtitle, initials, onLogout }) {
           {subtitle && <div className="text-[10px] text-white/50 font-medium tracking-wider uppercase">{subtitle}</div>}
         </div>
       </div>
-      <button
-        onClick={onLogout}
-        className="w-9 h-9 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold text-sm border-2 border-white/20"
-        title="Logout"
-      >
-        {initials || '?'}
-      </button>
+      <div className="flex items-center gap-1">
+        {rightExtra}
+        <button
+          onClick={onLogout}
+          className="w-9 h-9 bg-brand-teal rounded-full flex items-center justify-center text-white font-bold text-sm border-2 border-white/20"
+          title="Logout"
+        >
+          {initials || '?'}
+        </button>
+      </div>
     </div>
   )
 }
