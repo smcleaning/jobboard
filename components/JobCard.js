@@ -1,5 +1,5 @@
 'use client'
-import { formatTime, formatMoney, formatDate, getDayLabel, jobTypeLabels, jobTypeIcons, calculateEndTime } from '@/lib/utils'
+import { formatTime, formatMoney, formatPayRate, formatDate, getDayLabel, jobTypeLabels, jobTypeIcons, calculateEndTime } from '@/lib/utils'
 
 export default function JobCard({ job, showClaim, onClaim, claiming, workerView, claimed, lang }) {
   const urgencyMap = {
@@ -43,7 +43,7 @@ export default function JobCard({ job, showClaim, onClaim, claiming, workerView,
           </span>
         </div>
       ) : (
-        <div className="font-display text-lg font-bold text-brand-teal mb-2">{formatMoney(job.pay_amount)}</div>
+        <div className="font-display text-lg font-bold text-brand-teal mb-2">{formatPayRate(job.pay_amount, job.pay_type)}</div>
       )}
 
       {/* Notes */}
@@ -69,7 +69,7 @@ export default function JobCard({ job, showClaim, onClaim, claiming, workerView,
             <span key={claim.id} className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
               claim.status === 'claimed' ? 'bg-brand-green-bg text-brand-green' : 'bg-brand-gold-bg text-brand-gold'
             }`}>
-              {claim.status === 'claimed' ? '✓' : '⏳'} {claim.workers?.full_name || 'Worker'}
+              {claim.status === 'claimed' ? '✓' : '⏳'} {claim.transportation === 'drives' ? '🚗' : claim.transportation === 'needs_ride' ? '🙋' : ''} {claim.workers?.full_name || 'Worker'}
             </span>
           ))}
         </div>

@@ -333,9 +333,10 @@ export default function WorkerPage() {
   // Pay calculations
   const weekStart = weekStartStr()
   const weekClaimed = claimedJobs.filter(j => j.job_date >= weekStart)
-  const weekPay = weekClaimed.reduce((s, j) => s + Number(j.pay_amount), 0)
+  const jobTotal = j => j.pay_type === 'hourly' ? Number(j.pay_amount) * Number(j.duration_hours) : Number(j.pay_amount)
+  const weekPay = weekClaimed.reduce((s, j) => s + jobTotal(j), 0)
   const monthClaimed = claimedJobs
-  const monthPay = monthClaimed.reduce((s, j) => s + Number(j.pay_amount), 0)
+  const monthPay = monthClaimed.reduce((s, j) => s + jobTotal(j), 0)
 
   const tabs = [
     { id: 'jobs', icon: '📋', label: i.tabJobs || 'Jobs' },

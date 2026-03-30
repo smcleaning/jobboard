@@ -388,7 +388,7 @@ export default function AdminPage() {
                         {job.claims.map(claim => (
                           <div key={claim.id} className="flex items-center justify-between bg-white border border-brand-border rounded-lg px-3 py-2 mb-1.5 text-xs">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">{claim.workers?.full_name || 'Worker'}</span>
+                              <span className="font-semibold">{claim.transportation === 'drives' ? '🚗 ' : claim.transportation === 'needs_ride' ? '🙋 ' : ''}{claim.workers?.full_name || 'Worker'}</span>
                               <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                 claim.status === 'claimed' ? 'bg-brand-green-bg text-brand-green' :
                                 claim.status === 'completed' ? 'bg-brand-teal/10 text-brand-teal' :
@@ -429,7 +429,7 @@ export default function AdminPage() {
                         {job.claims.map(claim => (
                           <div key={claim.id} className="flex items-center justify-between bg-white border border-brand-border rounded-lg px-3 py-2 mb-1.5 text-xs">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">{claim.workers?.full_name || 'Worker'}</span>
+                              <span className="font-semibold">{claim.transportation === 'drives' ? '🚗 ' : claim.transportation === 'needs_ride' ? '🙋 ' : ''}{claim.workers?.full_name || 'Worker'}</span>
                               <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                 claim.status === 'claimed' ? 'bg-brand-green-bg text-brand-green' :
                                 claim.status === 'completed' ? 'bg-brand-teal/10 text-brand-teal' :
