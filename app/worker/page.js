@@ -218,6 +218,10 @@ export default function WorkerPage() {
   const [confirmJob, setConfirmJob] = useState(null)
   const [transport, setTransport] = useState(null)
   const [lang, setLang] = useState('en')
+  const [workerProfile, setWorkerProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [todayAvail, setTodayAvail] = useState(null)
+  const [savingAvail, setSavingAvail] = useState(false)
 
   const i = translations[lang] || translations.en
 
@@ -236,6 +240,36 @@ export default function WorkerPage() {
   function switchLang(l) {
     setLang(l)
     localStorage.setItem('smc_lang', l)
+  }
+
+  const fetchProfile = useCallback(async () => {
+    if (!worker) return
+    setProfileLoading(true)
+    try {
+      const res = await fetch(`/api/workers?id=${worker.id}`)
+      const data = await res.json()
+      setWorkerProfile(data)
+      setTodayAvail(data.today_available || 'unavailable')
+    } catch {}
+    setProfileLoading(false)
+  }, [worker])
+
+  useEffect(() => { if (tab === 'profile') fetchProfile() }, [tab, fetchProfile])
+
+  async function updateAvailability(val) {
+    setTodayAvail(val)
+    setSavingAvail(true)
+    try {
+      await fetch('/api/workers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: worker.id, today_available: val })
+      })
+      showToast(lang === 'es' ? '¡Disponibilidad actualizada!' : 'Availability updated!', 'success')
+      const updated = { ...worker, today_available: val }
+      localStorage.setItem('smc_worker', JSON.stringify(updated))
+    } catch { showToast(i.connError, 'error') }
+    setSavingAvail(false)
   }
 
   const fetchJobs = useCallback(async () => {
@@ -307,6 +341,7 @@ export default function WorkerPage() {
     { id: 'jobs', icon: '📋', label: i.tabJobs || 'Jobs' },
     { id: 'schedule', icon: '📅', label: i.tabWeek || 'My Week' },
     { id: 'pay', icon: '💰', label: i.tabPay || 'My Pay' },
+    { id: 'profile', icon: '👤', label: i.tabProfile || 'Profile' },
   ]
 
   const availLabel = worker.today_available === 'available'
@@ -497,6 +532,119 @@ export default function WorkerPage() {
                 </div>
               </>
             )}
+          </>
+        )}
+
+        {/* PROFILE TAB */}
+        {tab === 'profile' && (
+          <>
+            {/* Avatar header */}
+            <div className="bg-brand-navy rounded-2xl p-5 mb-4 text-white text-center">
+              <div className="w-20 h-20 bg-brand-teal rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-3xl font-bold text-white">{initials}</span>
+              </div>
+              <h2 className="font-bold text-xl">{worker.full_name}</h2>
+              <span className="text-xs bg-green-500/20 text-green-300 px-3 py-1 rounded-full font-semibold mt-1.5 inline-block">✓ {lang==='es'?'Aprobada':'Approved'}</span>
+              {worker.created_at && (
+                <p className="text-white/40 text-xs mt-2">{lang==='es'?'Miembro desde':'Member since'} {new Date(worker.created_at).toLocaleDateString(lang==='es'?'es-MX':'en-US', {month:'long', year:'numeric'})}</p>
+              )}
+            </div>
+
+            {/* Reliability score */}
+            <div className="bg-white border border-brand-border rounded-2xl p-4 mb-3 shadow-sm">
+              <h3 className="text-[10px] font-bold text-brand-text-secondary uppercase tracking-wider mb-3">⭐ {lang==='es'?'Mi Confiabilidad':'My Reliability'}</h3>
+              {profileLoading ? (
+                <div className="text-center py-4 text-sm text-brand-text-muted">{i.loading || 'Loading...'}</div>
+              ) : (() => {
+                const claims = workerProfile?.claims || []
+                const done = claims.filter(c => c.status === 'completed').length
+                const noShows = claims.filter(c => c.status === 'no_show').length
+                const total = done + noShows
+                const showRate = total > 0 ? Math.round((done / total) * 100) : null
+                const rateColor = showRate === null ? 'text-brand-text-muted' : showRate >= 80 ? 'text-green-600' : showRate >= 60 ? 'text-amber-500' : 'text-red-500'
+                return showRate !== null ? (
+                  <div>
+                    <div className="flex items-end gap-2 mb-4">
+                      <span className={`font-display text-6xl font-bold leading-none ${rateColor}`}>{showRate}%</span>
+                      <span className="text-sm text-brand-text-muted mb-1.5">{i.showRate || 'show rate'}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-green-50 border border-green-100 rounded-xl px-3 py-3 text-center">
+                        <div className="font-bold text-2xl text-green-600">{done}</div>
+                        <div className="text-[10px] text-green-700 font-semibold uppercase tracking-wider mt-0.5">{i.jobsDone || 'Completed'}</div>
+                      </div>
+                      <div className="flex-1 bg-red-50 border border-red-100 rounded-xl px-3 py-3 text-center">
+                        <div className="font-bold text-2xl text-red-500">{noShows}</div>
+                        <div className="text-[10px] text-red-600 font-semibold uppercase tracking-wider mt-0.5">{i.noShows || 'No-shows'}</div>
+                      </div>
+                      <div className="flex-1 bg-brand-muted border border-brand-border rounded-xl px-3 py-3 text-center">
+                        <div className="font-bold text-2xl text-brand-text">{total}</div>
+                        <div className="text-[10px] text-brand-text-secondary font-semibold uppercase tracking-wider mt-0.5">{lang==='es'?'Total':'Total'}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-2">🌟</div>
+                    <p className="font-bold text-sm text-brand-text">{lang==='es'?'¡Sin historial aún!':'No history yet!'}</p>
+                    <p className="text-xs text-brand-text-muted mt-1">{lang==='es'?'Completa tu primer trabajo para ver tu puntuación.':'Complete your first job to see your score.'}</p>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Today's availability */}
+            <div className="bg-white border border-brand-border rounded-2xl p-4 mb-3 shadow-sm">
+              <h3 className="text-[10px] font-bold text-brand-text-secondary uppercase tracking-wider mb-3">📅 {lang==='es'?'Disponibilidad de Hoy':'Today\'s Availability'}</h3>
+              <div className="flex gap-2">
+                {[
+                  { val:'available', label: lang==='es'?'✅ Disponible':'✅ Available', activeClass:'bg-green-500 text-white border-green-500' },
+                  { val:'partial',   label: lang==='es'?'🕐 Parcial':'🕐 Partial',      activeClass:'bg-amber-400 text-white border-amber-400' },
+                  { val:'unavailable', label: lang==='es'?'❌ Ocupada':'❌ Off',         activeClass:'bg-gray-400 text-white border-gray-400' },
+                ].map(({ val, label, activeClass }) => (
+                  <button key={val} onClick={() => updateAvailability(val)}
+                    className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border-2 transition-all ${todayAvail===val ? activeClass : 'bg-white text-brand-text-secondary border-brand-border'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {savingAvail && <p className="text-xs text-brand-text-muted text-center mt-2">{lang==='es'?'Guardando...':'Saving...'}</p>}
+            </div>
+
+            {/* My info */}
+            <div className="bg-white border border-brand-border rounded-2xl p-4 mb-6 shadow-sm">
+              <h3 className="text-[10px] font-bold text-brand-text-secondary uppercase tracking-wider mb-3">ℹ️ {lang==='es'?'Mi Información':'My Info'}</h3>
+              <div className="space-y-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl w-7 text-center">📱</span>
+                  <div><p className="text-[10px] text-brand-text-muted">{i.phoneNumber}</p><p className="text-sm font-semibold">{worker.phone}</p></div>
+                </div>
+                {worker.experience && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl w-7 text-center">🧹</span>
+                    <div><p className="text-[10px] text-brand-text-muted">{i.experience}</p><p className="text-sm font-semibold">{{none:i.expNone,less1:i.expLess1,'1to3':i.exp1to3,'3plus':i.exp3plus}[worker.experience] || worker.experience}</p></div>
+                  </div>
+                )}
+                {worker.transportation && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl w-7 text-center">🚗</span>
+                    <div><p className="text-[10px] text-brand-text-muted">{i.transportation}</p><p className="text-sm font-semibold">{{drives:i.transDrives,transit:i.transTransit,none:i.transNone}[worker.transportation] || worker.transportation}</p></div>
+                  </div>
+                )}
+                {worker.areas && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl w-7 text-center">📍</span>
+                    <div><p className="text-[10px] text-brand-text-muted">{i.areas}</p><p className="text-sm font-semibold">{worker.areas}</p></div>
+                  </div>
+                )}
+                {worker.earliest_start && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl w-7 text-center">🕐</span>
+                    <div><p className="text-[10px] text-brand-text-muted">{lang==='es'?'Horario disponible':'Available hours'}</p><p className="text-sm font-semibold">{formatTime(worker.earliest_start)} – {formatTime(worker.latest_end)}</p></div>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>
