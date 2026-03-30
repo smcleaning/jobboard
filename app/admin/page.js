@@ -7,6 +7,77 @@ import JobCard from '@/components/JobCard'
 import Toast, { showToast } from '@/components/Toast'
 import { formatMoney, formatTime, formatDate, getDayLabel, generateWhatsAppJobText, todayStr, weekStartStr, jobTypeLabels } from '@/lib/utils'
 
+function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing }) {
+  return (
+    <form onSubmit={onSubmit}>
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Job Title / Location</label>
+        <input type="text" value={data.title} onChange={e => setData({...data, title: e.target.value})} placeholder="e.g. Airbnb - 394 Lafayette, Passaic" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+      </div>
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">City</label>
+        <input type="text" value={data.location_city || ''} onChange={e => setData({...data, location_city: e.target.value})} placeholder="e.g. Passaic" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Date</label>
+          <input type="date" value={data.job_date} onChange={e => setData({...data, job_date: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Time</label>
+          <input type="time" value={data.start_time} onChange={e => setData({...data, start_time: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Duration</label>
+          <select value={data.duration_hours} onChange={e => setData({...data, duration_hours: parseFloat(e.target.value)})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+            <option value={2}>2 hours</option><option value={3}>3 hours</option><option value={4}>4 hours</option><option value={5}>5 hours</option><option value={8}>Full day</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Pay ($)</label>
+          <input type="number" value={data.pay_amount} onChange={e => setData({...data, pay_amount: e.target.value})} placeholder="125" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Type</label>
+          <select value={data.job_type} onChange={e => setData({...data, job_type: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+            <option value="airbnb">Airbnb Turnover</option><option value="deep_clean">Deep Clean</option><option value="commercial">Commercial</option><option value="restaurant">Restaurant</option><option value="residential">Residential</option><option value="common_area">Common Area</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Urgency</label>
+          <select value={data.urgency} onChange={e => setData({...data, urgency: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+            <option value="urgent">Urgent</option><option value="today">Today / Tomorrow</option><option value="flexible">Flexible</option>
+          </select>
+        </div>
+      </div>
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Notes for Worker</label>
+        <textarea value={data.notes || ''} onChange={e => setData({...data, notes: e.target.value})} placeholder="e.g. 3BR/2BA, bring vacuum, key under mat..." className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal min-h-[80px] resize-y" />
+      </div>
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Workers Needed</label>
+        <select value={data.workers_needed} onChange={e => setData({...data, workers_needed: parseInt(e.target.value)})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+          <option value={1}>1 worker</option><option value={2}>2 workers</option><option value={3}>3 workers</option><option value={4}>4 workers</option><option value={5}>5 workers</option>
+        </select>
+      </div>
+      {isEditing && (
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Status</label>
+          <select value={data.status || 'open'} onChange={e => setData({...data, status: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+            <option value="open">Open</option><option value="filled">Filled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      )}
+      <button type="submit" className="w-full py-3.5 bg-brand-teal text-white font-bold text-sm rounded-btn mb-2.5">{submitLabel}</button>
+      <button type="button" onClick={onCancel} className="w-full py-2.5 text-brand-teal font-semibold text-xs rounded-btn border-2 border-brand-teal bg-transparent">Cancel</button>
+    </form>
+  )
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [worker, setWorker] = useState(null)
@@ -238,77 +309,6 @@ export default function AdminPage() {
     { id: 'pay', icon: '💰', label: 'Pay' },
   ]
 
-  // ===================== JOB FORM (shared between new + edit) =====================
-  function JobForm({ data, setData, onSubmit, onCancel, submitLabel }) {
-    return (
-      <form onSubmit={onSubmit}>
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Job Title / Location</label>
-          <input type="text" value={data.title} onChange={e => setData({...data, title: e.target.value})} placeholder="e.g. Airbnb — 394 Lafayette, Passaic" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
-        </div>
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">City</label>
-          <input type="text" value={data.location_city || ''} onChange={e => setData({...data, location_city: e.target.value})} placeholder="e.g. Passaic" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
-        </div>
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Date</label>
-            <input type="date" value={data.job_date} onChange={e => setData({...data, job_date: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Time</label>
-            <input type="time" value={data.start_time} onChange={e => setData({...data, start_time: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Duration</label>
-            <select value={data.duration_hours} onChange={e => setData({...data, duration_hours: parseFloat(e.target.value)})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
-              <option value={2}>2 hours</option><option value={3}>3 hours</option><option value={4}>4 hours</option><option value={5}>5 hours</option><option value={8}>Full day</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Pay ($)</label>
-            <input type="number" value={data.pay_amount} onChange={e => setData({...data, pay_amount: e.target.value})} placeholder="125" className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Type</label>
-            <select value={data.job_type} onChange={e => setData({...data, job_type: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
-              <option value="airbnb">Airbnb Turnover</option><option value="deep_clean">Deep Clean</option><option value="commercial">Commercial</option><option value="restaurant">Restaurant</option><option value="residential">Residential</option><option value="common_area">Common Area</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Urgency</label>
-            <select value={data.urgency} onChange={e => setData({...data, urgency: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
-              <option value="urgent">Urgent</option><option value="today">Today / Tomorrow</option><option value="flexible">Flexible</option>
-            </select>
-          </div>
-        </div>
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Notes for Worker</label>
-          <textarea value={data.notes || ''} onChange={e => setData({...data, notes: e.target.value})} placeholder="e.g. 3BR/2BA, bring vacuum, key under mat..." className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal min-h-[80px] resize-y" />
-        </div>
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Workers Needed</label>
-          <select value={data.workers_needed} onChange={e => setData({...data, workers_needed: parseInt(e.target.value)})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
-            <option value={1}>1 worker</option><option value={2}>2 workers</option><option value={3}>3 workers</option><option value={4}>4 workers</option><option value={5}>5 workers</option>
-          </select>
-        </div>
-        {editingJob && (
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Status</label>
-            <select value={data.status || 'open'} onChange={e => setData({...data, status: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
-              <option value="open">Open</option><option value="filled">Filled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-        )}
-        <button type="submit" className="w-full py-3.5 bg-brand-teal text-white font-bold text-sm rounded-btn mb-2.5">{submitLabel}</button>
-        <button type="button" onClick={onCancel} className="w-full py-2.5 text-brand-teal font-semibold text-xs rounded-btn border-2 border-brand-teal bg-transparent">Cancel</button>
-      </form>
-    )
-  }
 
   // ===================== RENDER =====================
 
@@ -705,6 +705,7 @@ export default function AdminPage() {
             <div className="w-9 h-1 bg-brand-border rounded-full mx-auto mb-4" />
             <h2 className="font-display text-[22px] font-bold mb-4">Post New Job</h2>
             <JobForm
+              isEditing={false}
               data={newJob}
               setData={setNewJob}
               onSubmit={postJob}
@@ -722,6 +723,7 @@ export default function AdminPage() {
             <div className="w-9 h-1 bg-brand-border rounded-full mx-auto mb-4" />
             <h2 className="font-display text-[22px] font-bold mb-4">Edit Job</h2>
             <JobForm
+              isEditing={true}
               data={editingJob}
               setData={setEditingJob}
               onSubmit={(e) => {
