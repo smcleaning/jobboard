@@ -7,7 +7,7 @@ import JobCard from '@/components/JobCard'
 import Toast, { showToast } from '@/components/Toast'
 import { formatMoney, formatTime, formatDate, getDayLabel, generateWhatsAppJobText, todayStr, weekStartStr, jobTypeLabels } from '@/lib/utils'
 
-function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing }) {
+function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing, workers }) {
   return (
     <form onSubmit={onSubmit}>
       <div className="mb-4">
@@ -99,6 +99,48 @@ function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing }) 
           </select>
         </div>
       )}
+      {/* Recurrence + Auto-assign (new jobs only) */}
+      {!isEditing && (
+        <>
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">🔄 Repeat</label>
+            <div className="flex gap-1.5">
+              {[{v:'none',l:'No Repeat'},{v:'weekly',l:'Weekly'},{v:'biweekly',l:'Bi-weekly'},{v:'monthly',l:'Monthly'}].map(({v,l}) => (
+                <button key={v} type="button" onClick={() => setData({...data, recurrence: v})}
+                  className={`flex-1 py-2 text-[11px] font-bold rounded-btn border-2 transition-all ${(data.recurrence||'none')===v ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-brand-text-secondary border-brand-border'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {data.recurrence && data.recurrence !== 'none' && (
+            <div className="mb-4 bg-brand-teal/5 border border-brand-teal/20 rounded-xl px-3 py-3">
+              <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Number of Occurrences</label>
+              <div className="flex gap-2 flex-wrap">
+                {[2,3,4,6,8,12].map(n => (
+                  <button key={n} type="button" onClick={() => setData({...data, recurrence_count: n})}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-btn border-2 transition-all ${(data.recurrence_count||4)===n ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-brand-text-secondary border-brand-border'}`}>
+                    {n}×
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-brand-teal mt-2 font-medium">
+                🗓 Will create {data.recurrence_count || 4} jobs — {data.recurrence === 'weekly' ? 'every week' : data.recurrence === 'biweekly' ? 'every 2 weeks' : 'every month'}
+              </p>
+            </div>
+          )}
+          {workers?.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">👤 Auto-Assign To (optional)</label>
+              <select value={data.assigned_worker_id || ''} onChange={e => setData({...data, assigned_worker_id: e.target.value})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
+                <option value="">— Open to all workers</option>
+                {workers.map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}
+              </select>
+              {data.assigned_worker_id && <p className="text-[11px] text-brand-text-muted mt-1">This worker will be automatically claimed{data.recurrence !== 'none' ? ` for all ${data.recurrence_count || 4} occurrences` : ''}.</p>}
+            </div>
+          )}
+        </>
+      )}
       <button type="submit" className="w-full py-3.5 bg-brand-teal text-white font-bold text-sm rounded-btn mb-2.5">{submitLabel}</button>
       <button type="button" onClick={onCancel} className="w-full py-2.5 text-brand-teal font-semibold text-xs rounded-btn border-2 border-brand-teal bg-transparent">Cancel</button>
     </form>
@@ -125,6 +167,7 @@ export default function AdminPage() {
     title: '', location_address: '', location_city: '', job_date: todayStr(),
     start_time: '11:00', duration_hours: 4, pay_amount: '', pay_type: 'fixed', job_type: 'airbnb',
     urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '',
+    recurrence: 'none', recurrence_count: 4, assigned_worker_id: '',
   })
 
   useEffect(() => {
@@ -174,9 +217,10 @@ export default function AdminPage() {
       })
       const data = await res.json()
       if (!res.ok) { showToast(data.error, 'error'); return }
-      showToast('✓ Job posted!', 'success')
+      const count = data.recurring_count || 1
+      showToast(count > 1 ? `✓ ${count} recurring jobs created!` : '✓ Job posted!', 'success')
       setShowNewJob(false)
-      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', pay_type: 'fixed', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '' })
+      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', pay_type: 'fixed', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '', recurrence: 'none', recurrence_count: 4, assigned_worker_id: '' })
       const appUrl = window.location.origin
       const waText = generateWhatsAppJobText(data, `${appUrl}/worker`)
       window.open(`https://wa.me/?text=${waText}`, '_blank')
@@ -746,6 +790,7 @@ export default function AdminPage() {
               onSubmit={postJob}
               onCancel={() => setShowNewJob(false)}
               submitLabel="📲 Post & Share via WhatsApp"
+              workers={workers}
             />
           </div>
         </div>

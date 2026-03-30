@@ -51,6 +51,13 @@ export default function JobCard({ job, showClaim, onClaim, claiming, workerView,
         <div className="text-[11px] text-brand-text-secondary mb-2.5">{job.notes}</div>
       )}
 
+      {/* Recurring badge (admin view) */}
+      {!workerView && job.recurrence && job.recurrence !== 'none' && (
+        <div className="mb-1.5">
+          <span className="text-[10px] font-bold bg-brand-teal/10 text-brand-teal px-2 py-0.5 rounded-full">🔄 {job.recurrence === 'weekly' ? 'Weekly' : job.recurrence === 'biweekly' ? 'Bi-weekly' : 'Monthly'}</span>
+        </div>
+      )}
+
       {/* Status (admin view) */}
       {!workerView && (
         <div className="flex items-center gap-1.5 text-xs text-brand-text-secondary">

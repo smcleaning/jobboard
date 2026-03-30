@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+function getInterval(recurrence) {
+  if (recurrence === 'weekly') return 7
+  if (recurrence === 'biweekly') return 14
+  if (recurrence === 'monthly') return 30
+  return 7
+}
+
 // GET /api/jobs - List jobs with optional filters
 export async function GET(request) {
   const supabase = createServerClient()
@@ -44,40 +57,64 @@ export async function POST(request) {
   const supabase = createServerClient()
   const body = await request.json()
 
-  const { title, location_address, location_city, job_date, start_time, duration_hours, pay_amount, pay_type, job_type, urgency, notes, workers_needed, posted_by, checklist, access_code, parking_notes } = body
+  const { title, location_address, location_city, job_date, start_time, duration_hours, pay_amount, pay_type, job_type, urgency, notes, workers_needed, posted_by, checklist, access_code, parking_notes, recurrence, recurrence_count, assigned_worker_id } = body
 
   if (!title || !job_date || !start_time || !pay_amount) {
     return NextResponse.json({ error: 'Title, date, time, and pay are required' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
-    .from('jobs')
-    .insert({
-      title,
-      location_address,
-      location_city,
-      job_date,
-      start_time,
-      duration_hours: duration_hours || 4,
-      pay_amount,
-      pay_type: pay_type || 'fixed',
-      job_type: job_type || 'residential',
-      urgency: urgency || 'today',
-      notes,
-      workers_needed: workers_needed || 1,
-      posted_by,
-      checklist: checklist || [],
-      access_code: access_code || null,
-      parking_notes: parking_notes || null,
-    })
-    .select('*, claims(*, workers(full_name))')
-    .single()
+  const isRecurring = recurrence && recurrence !== 'none'
+  const count = isRecurring ? (recurrence_count || 4) : 1
+  const templateId = isRecurring ? crypto.randomUUID() : null
+  const interval = getInterval(recurrence)
+
+  const baseJob = {
+    title, location_address, location_city, start_time,
+    duration_hours: duration_hours || 4,
+    pay_amount, pay_type: pay_type || 'fixed',
+    job_type: job_type || 'residential',
+    urgency: urgency || 'today',
+    notes, workers_needed: workers_needed || 1,
+    posted_by, checklist: checklist || [],
+    access_code: access_code || null,
+    parking_notes: parking_notes || null,
+    recurrence: recurrence || 'none',
+    recurrence_template_id: templateId,
+  }
+
+  const jobsToInsert = Array.from({ length: count }, (_, i) => ({
+    ...baseJob,
+    job_date: i === 0 ? job_date : addDays(job_date, i * interval),
+  }))
+
+  let createdJobs, error
+
+  if (count === 1) {
+    const { data, error: err } = await supabase
+      .from('jobs').insert(jobsToInsert[0])
+      .select('*, claims(*, workers(full_name))').single()
+    createdJobs = data ? [data] : []
+    error = err
+  } else {
+    const { data, error: err } = await supabase
+      .from('jobs').insert(jobsToInsert)
+      .select('id, title, job_date, pay_amount, pay_type, location_city, start_time, duration_hours, job_type, urgency, recurrence')
+    createdJobs = data || []
+    error = err
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  // Auto-assign worker to all created jobs
+  if (assigned_worker_id && createdJobs.length > 0) {
+    const claimsToInsert = createdJobs.map(j => ({ job_id: j.id, worker_id: assigned_worker_id }))
+    await supabase.from('claims').insert(claimsToInsert)
+  }
+
+  const firstJob = createdJobs[0] || {}
+  return NextResponse.json({ ...firstJob, recurring_count: count })
 }
 
 // PATCH /api/jobs - Update a job
