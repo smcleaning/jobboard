@@ -27,7 +27,7 @@ export default function WorkerPage() {
     if (w.status !== 'approved') { router.replace('/login'); return }
     setWorker(w)
     // Use worker's language preference, fallback to saved or 'en'
-    const workerLang = w.language || localStorage.getItem('smc_lang') || 'en'
+    const workerLang = w.language || localStorage.getItem('smc_lang') || 'es'
     setLang(workerLang)
   }, [router])
 

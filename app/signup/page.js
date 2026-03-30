@@ -7,12 +7,12 @@ export default function SignupPage() {
   const [step, setStep] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState('es')
   const [form, setForm] = useState({
     full_name: '', phone: '', experience: '', areas: '',
     available_days: [true, true, true, true, true, false, false],
     earliest_start: '07:00', latest_end: '17:00',
-    transportation: 'drives', language: 'en',
+    transportation: 'drives', language: 'es',
   })
   const [pin, setPin] = useState(['', '', '', ''])
   const pinRefs = [useRef(), useRef(), useRef(), useRef()]

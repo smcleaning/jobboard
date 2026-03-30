@@ -40,7 +40,7 @@ async function handleLogin(supabase, { phone, pin }) {
   }
 
   if (worker.status === 'pending') {
-    return NextResponse.json({ error: 'Your account is pending approval. Jose will approve you soon!' }, { status: 403 })
+    return NextResponse.json({ error: 'Tu cuenta está pendiente de aprobación. ¡Sylvia te aprobará pronto! / Your account is pending approval. Sylvia will approve you soon!' }, { status: 403 })
   }
 
   if (worker.status === 'denied') {
@@ -89,7 +89,7 @@ async function handleSignup(supabase, { full_name, phone, pin, experience, areas
       earliest_start: earliest_start || '07:00',
       latest_end: latest_end || '17:00',
       transportation: transportation || 'drives',
-      language: language || 'en',
+      language: language || 'es',
       status: 'pending',
     })
     .select()

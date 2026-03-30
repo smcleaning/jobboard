@@ -10,14 +10,14 @@ export default function LoginPage() {
   const [pin, setPin] = useState(['', '', '', ''])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState('es')
   const pinRefs = [useRef(), useRef(), useRef(), useRef()]
 
   const i = translations[lang] || translations.en
 
   useEffect(() => {
     const saved = localStorage.getItem('smc_lang')
-    if (saved === 'es' || saved === 'en') setLang(saved)
+    if (saved === 'en' || saved === 'es') setLang(saved)
   }, [])
 
   function switchLang(l) {
