@@ -21,14 +21,20 @@ export async function GET(request) {
     return NextResponse.json(safe)
   }
 
-  let query = supabase.from('workers').select('*')
+  let query = supabase.from('workers').select('*, claims(status)')
   if (status) query = query.eq('status', status)
   query = query.order('created_at', { ascending: false })
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const safe = data.map(({ pin_hash, ...rest }) => rest)
+  const safe = data.map(({ pin_hash, claims, ...rest }) => {
+    const done = (claims || []).filter(c => c.status === 'completed').length
+    const noShows = (claims || []).filter(c => c.status === 'no_show').length
+    const total = done + noShows
+    const showRate = total > 0 ? Math.round((done / total) * 100) : null
+    return { ...rest, stats: { done, noShows, total, showRate } }
+  })
   return NextResponse.json(safe)
 }
 

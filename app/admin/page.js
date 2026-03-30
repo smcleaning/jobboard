@@ -58,6 +58,26 @@ function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing }) 
         <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Notes for Worker</label>
         <textarea value={data.notes || ''} onChange={e => setData({...data, notes: e.target.value})} placeholder="e.g. 3BR/2BA, bring vacuum, key under mat..." className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal min-h-[80px] resize-y" />
       </div>
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">🔑 Access Code</label>
+          <input type="text" value={data.access_code || ''} onChange={e => setData({...data, access_code: e.target.value})} placeholder="e.g. #1234 or key under mat" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">🅿️ Parking</label>
+          <input type="text" value={data.parking_notes || ''} onChange={e => setData({...data, parking_notes: e.target.value})} placeholder="e.g. Street parking on Oak" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+        </div>
+      </div>
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">✅ Job Checklist</label>
+        {(data.checklist || []).map((item, idx) => (
+          <div key={idx} className="flex items-center gap-2 mb-1.5">
+            <input type="text" value={item} onChange={e => { const c = [...(data.checklist||[])]; c[idx] = e.target.value; setData({...data, checklist: c}) }} placeholder={`Task ${idx+1}`} className="flex-1 px-3 py-2 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+            <button type="button" onClick={() => { const c = [...(data.checklist||[])]; c.splice(idx,1); setData({...data, checklist: c}) }} className="text-brand-red text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-brand-red/10">×</button>
+          </div>
+        ))}
+        <button type="button" onClick={() => setData({...data, checklist: [...(data.checklist||[]), '']})} className="text-[11px] font-bold text-brand-teal border-2 border-dashed border-brand-teal/40 rounded-btn px-3 py-2 w-full mt-1 hover:bg-brand-teal/5">+ Add task</button>
+      </div>
       <div className="mb-4">
         <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Workers Needed</label>
         <select value={data.workers_needed} onChange={e => setData({...data, workers_needed: parseInt(e.target.value)})} className="w-full px-3 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal bg-white">
@@ -97,7 +117,7 @@ export default function AdminPage() {
   const [newJob, setNewJob] = useState({
     title: '', location_address: '', location_city: '', job_date: todayStr(),
     start_time: '11:00', duration_hours: 4, pay_amount: '', job_type: 'airbnb',
-    urgency: 'today', notes: '', workers_needed: 1,
+    urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '',
   })
 
   useEffect(() => {
@@ -149,7 +169,7 @@ export default function AdminPage() {
       if (!res.ok) { showToast(data.error, 'error'); return }
       showToast('✓ Job posted!', 'success')
       setShowNewJob(false)
-      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1 })
+      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '' })
       const appUrl = window.location.origin
       const waText = generateWhatsAppJobText(data, `${appUrl}/worker`)
       window.open(`https://wa.me/?text=${waText}`, '_blank')
@@ -541,9 +561,17 @@ export default function AdminPage() {
                         {w.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <div className="font-semibold text-sm flex items-center gap-1.5 flex-wrap">
                           {w.full_name}
                           {w.is_admin && <span className="text-[8px] font-bold bg-brand-navy text-white px-1.5 py-0.5 rounded">ADMIN</span>}
+                          {w.stats?.showRate !== null && w.stats?.showRate !== undefined && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${w.stats.showRate >= 80 ? 'bg-brand-green-bg text-brand-green' : w.stats.showRate >= 50 ? 'bg-brand-gold-bg text-brand-gold' : 'bg-brand-red-bg text-brand-red'}`}>
+                              ★ {w.stats.showRate}% ({w.stats.done} jobs)
+                            </span>
+                          )}
+                          {w.stats?.noShows > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand-red-bg text-brand-red">{w.stats.noShows} no-show{w.stats.noShows > 1 ? 's' : ''}</span>
+                          )}
                         </div>
                         <div className="text-[11px] text-brand-text-secondary truncate">
                           {w.phone} · {w.last_active ? `Active ${new Date(w.last_active).toLocaleDateString()}` : 'No activity'}

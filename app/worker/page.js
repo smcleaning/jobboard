@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import TopBar from '@/components/TopBar'
 import Tabs from '@/components/Tabs'
@@ -7,6 +7,35 @@ import JobCard from '@/components/JobCard'
 import Toast, { showToast } from '@/components/Toast'
 import { formatMoney, formatTime, formatDate, getDayLabel, weekStartStr, todayStr, calculateEndTime } from '@/lib/utils'
 import { translations } from '@/lib/i18n'
+
+function ClaimedJobChecklist({ job, worker, i }) {
+  const checkKey = `checklist_${job.id}_${worker.id}`
+  const [checked, setChecked] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem(checkKey) || '{}') } catch { return {} }
+  })
+  const allDone = job.checklist.every((_, idx) => checked[idx])
+  function toggle(idx) {
+    const next = { ...checked, [idx]: !checked[idx] }
+    setChecked(next)
+    try { localStorage.setItem(checkKey, JSON.stringify(next)) } catch {}
+  }
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-brand-text-secondary uppercase tracking-wider mb-2">{i.checklist}</p>
+      {job.checklist.map((item, idx) => (
+        <button key={idx} onClick={() => toggle(idx)} className="w-full flex items-center gap-2.5 py-2 border-b border-brand-muted last:border-0 text-left">
+          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${checked[idx] ? 'bg-brand-green border-brand-green' : 'border-brand-border'}`}>
+            {checked[idx] && <span className="text-white text-xs font-bold">✓</span>}
+          </div>
+          <span className={`text-sm ${checked[idx] ? 'line-through text-brand-text-muted' : 'text-brand-text'}`}>{item}</span>
+        </button>
+      ))}
+      {allDone && (
+        <div className="mt-2 text-center text-xs font-bold text-brand-green">🎉 {i.checklistDone}</div>
+      )}
+    </div>
+  )
+}
 
 export default function WorkerPage() {
   const router = useRouter()
@@ -16,6 +45,7 @@ export default function WorkerPage() {
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(null)
   const [confirmJob, setConfirmJob] = useState(null)
+  const [transport, setTransport] = useState(null)
   const [lang, setLang] = useState('en')
 
   const i = translations[lang] || translations.en
@@ -53,18 +83,19 @@ export default function WorkerPage() {
   // Opens confirmation modal (called when worker taps "Reclamar" on a job card)
   function openConfirm(jobId) {
     const job = jobs.find(j => j.id === jobId)
-    if (job) setConfirmJob(job)
+    if (job) { setConfirmJob(job); setTransport(null) }
   }
 
   // Actually submits the claim (called from modal confirm button)
   async function claimJob(jobId) {
+    if (!transport) { showToast(i.transportRequired, 'error'); return }
     setConfirmJob(null)
     setClaiming(jobId)
     try {
       const res = await fetch('/api/claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId, worker_id: worker.id })
+        body: JSON.stringify({ job_id: jobId, worker_id: worker.id, transportation: transport })
       })
       const data = await res.json()
       if (!res.ok) { showToast(data.error || i.claimError, 'error'); return }
@@ -147,6 +178,21 @@ export default function WorkerPage() {
                   <p className="font-display text-2xl font-bold text-brand-green">{formatMoney(confirmJob.pay_amount)}</p>
                 </div>
               </div>
+
+              {/* Transportation selection */}
+              <div className="mt-1">
+                <p className="text-[11px] font-semibold text-brand-text-secondary uppercase tracking-wider mb-2">{i.transportTitle}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTransport('drives')}
+                    className={`flex-1 py-2.5 rounded-btn text-sm font-semibold border-2 transition-all ${transport === 'drives' ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-brand-text-secondary border-brand-border'}`}
+                  >{i.transportDrives}</button>
+                  <button
+                    onClick={() => setTransport('needs_ride')}
+                    className={`flex-1 py-2.5 rounded-btn text-sm font-semibold border-2 transition-all ${transport === 'needs_ride' ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-brand-text-secondary border-brand-border'}`}
+                  >{i.transportRide}</button>
+                </div>
+              </div>
             </div>
             {/* Buttons */}
             <div className="px-5 pb-5 flex gap-3">
@@ -158,7 +204,7 @@ export default function WorkerPage() {
               </button>
               <button
                 onClick={() => claimJob(confirmJob.id)}
-                className="flex-1 py-3 rounded-btn bg-brand-teal text-white font-bold text-sm active:scale-[0.97] transition-all"
+                className={`flex-1 py-3 rounded-btn font-bold text-sm active:scale-[0.97] transition-all ${transport ? 'bg-brand-teal text-white' : 'bg-gray-200 text-gray-400'}`}
               >
                 {i.confirmBtn}
               </button>
@@ -201,14 +247,39 @@ export default function WorkerPage() {
             {claimedJobs.length > 0 && (
               <>
                 <h2 className="font-display text-xl font-bold mt-5 mb-3">{i.myClaimedJobs}</h2>
-                {claimedJobs.map(job => (
-                  <div key={job.id} className="bg-white border border-brand-border rounded-card p-4 mb-3 shadow-sm border-l-4 border-l-brand-green">
-                    <div className="font-bold text-sm mb-1">{job.title}</div>
-                    <div className="text-xs text-brand-text-secondary">
-                      {getDayLabel(job.job_date)} {formatTime(job.start_time)} · {job.location_city || ''} · {formatMoney(job.pay_amount)}
+                {claimedJobs.map(job => {
+                  const checkKey = `checklist_${job.id}_${worker.id}`
+                  const savedChecks = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(checkKey) || '{}') : {}
+                  return (
+                    <div key={job.id} className="bg-white border border-brand-border rounded-card p-4 mb-3 shadow-sm border-l-4 border-l-brand-green">
+                      <div className="font-bold text-sm mb-1">{job.title}</div>
+                      <div className="text-xs text-brand-text-secondary mb-3">
+                        {getDayLabel(job.job_date)} · {formatTime(job.start_time)} – {formatTime(calculateEndTime(job.start_time, job.duration_hours))} · {formatMoney(job.pay_amount)}
+                      </div>
+                      {/* Access code & parking */}
+                      {(job.access_code || job.parking_notes) && (
+                        <div className="bg-brand-muted rounded-lg px-3 py-2.5 mb-3 space-y-1.5">
+                          {job.access_code && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-base">🔑</span>
+                              <div><span className="font-semibold text-brand-text-secondary">{i.accessCode}:</span> <span className="font-bold">{job.access_code}</span></div>
+                            </div>
+                          )}
+                          {job.parking_notes && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-base">🅿️</span>
+                              <div><span className="font-semibold text-brand-text-secondary">{i.parkingNotes}:</span> <span className="font-bold">{job.parking_notes}</span></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Checklist */}
+                      {job.checklist?.length > 0 && (
+                        <ClaimedJobChecklist job={job} worker={worker} i={i} />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </>
             )}
           </>

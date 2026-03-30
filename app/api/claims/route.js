@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase'
 // POST /api/claims - Claim a job (or admin force-assign)
 export async function POST(request) {
   const supabase = createServerClient()
-  const { job_id, worker_id, force } = await request.json()
+  const { job_id, worker_id, force, transportation } = await request.json()
 
   if (!job_id || !worker_id) {
     return NextResponse.json({ error: 'Job ID and worker ID required' }, { status: 400 })
@@ -47,7 +47,7 @@ export async function POST(request) {
   // Create claim (trigger will update job.workers_claimed and job.status)
   const { data: claim, error } = await supabase
     .from('claims')
-    .insert({ job_id, worker_id })
+    .insert({ job_id, worker_id, transportation: transportation || null })
     .select('*, jobs(title), workers(full_name)')
     .single()
 
