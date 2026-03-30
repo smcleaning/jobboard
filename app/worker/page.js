@@ -5,7 +5,7 @@ import TopBar from '@/components/TopBar'
 import Tabs from '@/components/Tabs'
 import JobCard from '@/components/JobCard'
 import Toast, { showToast } from '@/components/Toast'
-import { formatMoney, formatTime, formatDate, getDayLabel, weekStartStr, todayStr } from '@/lib/utils'
+import { formatMoney, formatTime, formatDate, getDayLabel, weekStartStr, todayStr, calculateEndTime } from '@/lib/utils'
 import { translations } from '@/lib/i18n'
 
 export default function WorkerPage() {
@@ -15,6 +15,7 @@ export default function WorkerPage() {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(null)
+  const [confirmJob, setConfirmJob] = useState(null)
   const [lang, setLang] = useState('en')
 
   const i = translations[lang] || translations.en
@@ -49,7 +50,15 @@ export default function WorkerPage() {
 
   useEffect(() => { fetchJobs() }, [fetchJobs])
 
+  // Opens confirmation modal (called when worker taps "Reclamar" on a job card)
+  function openConfirm(jobId) {
+    const job = jobs.find(j => j.id === jobId)
+    if (job) setConfirmJob(job)
+  }
+
+  // Actually submits the claim (called from modal confirm button)
   async function claimJob(jobId) {
+    setConfirmJob(null)
     setClaiming(jobId)
     try {
       const res = await fetch('/api/claims', {
@@ -107,6 +116,56 @@ export default function WorkerPage() {
   return (
     <div className="min-h-screen bg-brand-bg">
       <Toast />
+
+      {/* Claim Confirmation Modal */}
+      {confirmJob && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-6">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-brand-navy px-5 py-4">
+              <p className="text-white font-bold text-base">{i.confirmTitle}</p>
+              <p className="text-white/70 text-xs mt-0.5">{i.confirmQuestion}</p>
+            </div>
+            {/* Job details */}
+            <div className="px-5 py-4 space-y-2.5">
+              <div className="font-bold text-[15px]">{confirmJob.title}</div>
+              <div className="flex items-center gap-2 text-sm text-brand-text-secondary">
+                <span>📅</span>
+                <span>{getDayLabel(confirmJob.job_date)}, {formatTime(confirmJob.start_time)} – {formatTime(calculateEndTime(confirmJob.start_time, confirmJob.duration_hours))}</span>
+              </div>
+              {confirmJob.location_city && (
+                <div className="flex items-center gap-2 text-sm text-brand-text-secondary">
+                  <span>📍</span>
+                  <span>{confirmJob.location_city}</span>
+                </div>
+              )}
+              {/* Pay revealed here */}
+              <div className="flex items-center gap-2 bg-brand-green-bg rounded-xl px-4 py-3 mt-1">
+                <span className="text-lg">💵</span>
+                <div>
+                  <p className="text-[11px] text-brand-text-secondary font-medium">{i.confirmPay}</p>
+                  <p className="font-display text-2xl font-bold text-brand-green">{formatMoney(confirmJob.pay_amount)}</p>
+                </div>
+              </div>
+            </div>
+            {/* Buttons */}
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setConfirmJob(null)}
+                className="flex-1 py-3 rounded-btn border border-brand-border text-brand-text-secondary font-semibold text-sm"
+              >
+                {i.cancelBtn}
+              </button>
+              <button
+                onClick={() => claimJob(confirmJob.id)}
+                className="flex-1 py-3 rounded-btn bg-brand-teal text-white font-bold text-sm active:scale-[0.97] transition-all"
+              >
+                {i.confirmBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <TopBar
         title="SMC Job Board"
         subtitle={worker.full_name}
@@ -135,7 +194,7 @@ export default function WorkerPage() {
               </div>
             ) : (
               openJobs.map(job => (
-                <JobCard key={job.id} job={job} workerView showClaim onClaim={claimJob} claiming={claiming === job.id} lang={lang} />
+                <JobCard key={job.id} job={job} workerView showClaim onClaim={openConfirm} claiming={claiming === job.id} lang={lang} />
               ))
             )}
 

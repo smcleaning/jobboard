@@ -55,6 +55,29 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // Race condition guard: re-count active claims immediately after insert.
+  // If two workers claimed simultaneously and this one pushed us over capacity,
+  // delete this claim and return "already filled".
+  if (!force) {
+    const { count: claimCount } = await supabase
+      .from('claims')
+      .select('id', { count: 'exact', head: true })
+      .eq('job_id', job_id)
+      .eq('status', 'claimed')
+
+    const { data: freshJob } = await supabase
+      .from('jobs')
+      .select('workers_needed')
+      .eq('id', job_id)
+      .single()
+
+    if (freshJob && claimCount > freshJob.workers_needed) {
+      // Someone else slipped in — undo this claim
+      await supabase.from('claims').delete().eq('id', claim.id)
+      return NextResponse.json({ error: '¡Este trabajo ya fue tomado por otra persona! / This job was just taken by someone else!' }, { status: 409 })
+    }
+  }
+
   // If force-assigning beyond capacity, bump workers_needed
   if (force && job.workers_claimed >= job.workers_needed) {
     await supabase

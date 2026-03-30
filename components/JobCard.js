@@ -1,7 +1,7 @@
 'use client'
 import { formatTime, formatMoney, formatDate, getDayLabel, jobTypeLabels, jobTypeIcons, calculateEndTime } from '@/lib/utils'
 
-export default function JobCard({ job, showClaim, onClaim, claiming, workerView, claimed }) {
+export default function JobCard({ job, showClaim, onClaim, claiming, workerView, claimed, lang }) {
   const urgencyMap = {
     urgent: { bg: 'bg-red-50', text: 'text-brand-red', label: 'Urgent' },
     today: { bg: 'bg-blue-50', text: 'text-brand-blue', label: getDayLabel(job.job_date) },
@@ -34,8 +34,17 @@ export default function JobCard({ job, showClaim, onClaim, claiming, workerView,
         </span>
       </div>
 
-      {/* Pay */}
-      <div className="font-display text-lg font-bold text-brand-teal mb-2">{formatMoney(job.pay_amount)}</div>
+      {/* Pay — hidden in worker listing view, revealed after claiming */}
+      {workerView && !claimed ? (
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-sm">🔒</span>
+          <span className="text-xs text-brand-text-secondary italic">
+            {lang === 'es' ? 'Toca Reclamar para ver el pago' : 'Tap Claim to see pay'}
+          </span>
+        </div>
+      ) : (
+        <div className="font-display text-lg font-bold text-brand-teal mb-2">{formatMoney(job.pay_amount)}</div>
+      )}
 
       {/* Notes */}
       {job.notes && workerView && (
@@ -73,7 +82,9 @@ export default function JobCard({ job, showClaim, onClaim, claiming, workerView,
           disabled={claiming}
           className="w-full mt-3 py-2.5 bg-brand-teal text-white font-bold text-sm rounded-btn transition-all active:scale-[0.97] disabled:opacity-50"
         >
-          {claiming ? 'Claiming...' : '🙋 Claim This Job'}
+          {claiming
+            ? (lang === 'es' ? 'Reclamando...' : 'Claiming...')
+            : (lang === 'es' ? '🙋 Reclamar' : '🙋 Claim This Job')}
         </button>
       )}
 
