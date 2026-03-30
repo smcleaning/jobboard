@@ -3,10 +3,181 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import TopBar from '@/components/TopBar'
 import Tabs from '@/components/Tabs'
-import JobCard from '@/components/JobCard'
 import Toast, { showToast } from '@/components/Toast'
-import { formatMoney, formatTime, formatDate, getDayLabel, weekStartStr, todayStr, calculateEndTime } from '@/lib/utils'
+import { formatMoney, formatPayRate, formatPayEstimate, formatTime, formatDate, getDayLabel, weekStartStr, todayStr, calculateEndTime, jobTypeIcons, jobTypeLabels, jobTypeLabelsEs } from '@/lib/utils'
 import { translations } from '@/lib/i18n'
+
+// ─── helper: day label in correct language ───────────────────────────────────
+function dayLabelLang(dateStr, lang) {
+  const today = new Date(); today.setHours(0,0,0,0)
+  const d = new Date(dateStr + 'T12:00:00'); d.setHours(0,0,0,0)
+  const diff = Math.round((d - today) / 86400000)
+  if (diff === 0) return lang === 'es' ? 'Hoy' : 'Today'
+  if (diff === 1) return lang === 'es' ? 'Mañana' : 'Tomorrow'
+  return formatDate(dateStr)
+}
+
+// ─── Available job card (tap to see notes, claim button) ─────────────────────
+function WorkerAvailableCard({ job, onClaim, claiming, lang, i }) {
+  const [showNotes, setShowNotes] = React.useState(false)
+  const endTime = calculateEndTime(job.start_time, job.duration_hours)
+  const icon = jobTypeIcons[job.job_type] || '🧹'
+  const typeLabel = lang === 'es' ? (jobTypeLabelsEs[job.job_type] || job.job_type) : (jobTypeLabels[job.job_type] || job.job_type)
+  const day = dayLabelLang(job.job_date, lang)
+  const urgencyConfig = {
+    urgent: { strip: 'bg-red-500',   badge: 'bg-red-50 text-red-600',   label: lang==='es'?'Urgente':'Urgent' },
+    today:  { strip: 'bg-brand-teal',badge: 'bg-teal-50 text-brand-teal',label: day },
+    flexible:{ strip:'bg-brand-green',badge:'bg-green-50 text-brand-green',label: lang==='es'?'Flexible':'Flexible' },
+  }
+  const urg = urgencyConfig[job.urgency] || urgencyConfig.today
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden border border-brand-border">
+      <div className={`h-1 ${urg.strip}`} />
+      <div className="p-4">
+        {/* Title row */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <span className="text-2xl shrink-0">{icon}</span>
+            <div className="min-w-0">
+              <h3 className="font-bold text-[15px] leading-snug">{job.title}</h3>
+              <span className="text-[11px] text-brand-text-muted">{typeLabel}</span>
+            </div>
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ml-2 shrink-0 ${urg.badge}`}>{urg.label}</span>
+        </div>
+
+        {/* Info chips */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <span className="text-[12px] bg-brand-muted px-2.5 py-1 rounded-full font-medium text-brand-text-secondary">
+            📅 {day} · {formatTime(job.start_time)}–{formatTime(endTime)}
+          </span>
+          {job.location_city && (
+            <span className="text-[12px] bg-brand-muted px-2.5 py-1 rounded-full font-medium text-brand-text-secondary">
+              📍 {job.location_city}
+            </span>
+          )}
+          <span className="text-[12px] bg-brand-muted px-2.5 py-1 rounded-full font-medium text-brand-text-secondary">
+            🕐 {job.duration_hours}h
+          </span>
+        </div>
+
+        {/* Notes toggle */}
+        {job.notes && (
+          <>
+            <button onClick={() => setShowNotes(v=>!v)} className="text-[12px] text-brand-teal font-semibold mb-1.5 flex items-center gap-1">
+              <span>{showNotes ? '▲' : '▼'}</span>
+              <span>{lang==='es' ? (showNotes?'Ocultar notas':'Ver notas') : (showNotes?'Hide notes':'View notes')}</span>
+            </button>
+            {showNotes && (
+              <div className="bg-brand-muted rounded-xl px-3 py-2.5 mb-3 text-[12px] text-brand-text-secondary leading-relaxed">
+                {job.notes}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Hidden pay hint */}
+        <div className="flex items-center gap-1.5 text-[12px] text-brand-text-muted italic mb-3">
+          🔒 {i.hiddenPay}
+        </div>
+
+        {/* Claim button */}
+        <button
+          onClick={() => onClaim(job.id)}
+          disabled={claiming}
+          className="w-full py-3 bg-brand-teal text-white font-bold text-[14px] rounded-xl active:scale-[0.97] transition-all disabled:opacity-50"
+        >
+          {claiming
+            ? (lang==='es' ? '⏳ Reclamando...' : '⏳ Claiming...')
+            : (lang==='es' ? '🙋 Reclamar este trabajo' : '🙋 Claim This Job')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Claimed job card (tap to expand details, checklist, access code) ─────────
+function WorkerClaimedCard({ job, worker, i, lang }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const endTime = calculateEndTime(job.start_time, job.duration_hours)
+  const day = dayLabelLang(job.job_date, lang)
+  const hasDetails = job.access_code || job.parking_notes || job.checklist?.length > 0 || job.notes
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden border border-brand-border" style={{borderLeft:'4px solid #22c55e'}}>
+      {/* Always-visible header — tap to expand */}
+      <div className="p-4 cursor-pointer select-none" onClick={() => hasDetails && setExpanded(v=>!v)}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-green-600 text-sm font-bold">✓</span>
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">{lang==='es'?'Reclamado':'Claimed'}</span>
+              <h3 className="font-bold text-[14px] leading-snug truncate">{job.title}</h3>
+            </div>
+          </div>
+          <div className="text-right ml-2 shrink-0">
+            <div className="font-display text-xl font-bold text-green-600">{formatPayRate(job.pay_amount, job.pay_type)}</div>
+            {formatPayEstimate(job.pay_amount, job.pay_type, job.duration_hours) && (
+              <div className="text-[11px] text-green-500">{formatPayEstimate(job.pay_amount, job.pay_type, job.duration_hours)}</div>
+            )}
+            {hasDetails && <div className="text-[11px] text-brand-text-muted mt-0.5">{expanded ? '▲ '+(lang==='es'?'Ocultar':'Hide') : '▼ '+(lang==='es'?'Ver detalles':'Details')}</div>}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-2.5 ml-[42px]">
+          <span className="text-[11px] bg-brand-muted px-2.5 py-1 rounded-full text-brand-text-secondary font-medium">
+            📅 {day} · {formatTime(job.start_time)}–{formatTime(endTime)}
+          </span>
+          {job.location_city && (
+            <span className="text-[11px] bg-brand-muted px-2.5 py-1 rounded-full text-brand-text-secondary font-medium">
+              📍 {job.location_city}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Expandable details */}
+      {expanded && hasDetails && (
+        <div className="border-t border-brand-muted px-4 pb-4 pt-3 space-y-3">
+          {job.notes && (
+            <div className="bg-brand-muted rounded-xl px-3 py-2.5 text-[12px] text-brand-text-secondary leading-relaxed">
+              📝 {job.notes}
+            </div>
+          )}
+          {(job.access_code || job.parking_notes) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3 space-y-2.5">
+              {job.access_code && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🔑</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">{i.accessCode}</p>
+                    <p className="font-bold text-base text-amber-900">{job.access_code}</p>
+                  </div>
+                </div>
+              )}
+              {job.parking_notes && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🅿️</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">{i.parkingNotes}</p>
+                    <p className="font-bold text-sm text-amber-900">{job.parking_notes}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {job.checklist?.length > 0 && (
+            <div className="bg-white border border-brand-border rounded-xl px-3 py-3">
+              <ClaimedJobChecklist job={job} worker={worker} i={i} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ClaimedJobChecklist({ job, worker, i }) {
   const checkKey = `checklist_${job.id}_${worker.id}`
@@ -175,7 +346,10 @@ export default function WorkerPage() {
                 <span className="text-lg">💵</span>
                 <div>
                   <p className="text-[11px] text-brand-text-secondary font-medium">{i.confirmPay}</p>
-                  <p className="font-display text-2xl font-bold text-brand-green">{formatMoney(confirmJob.pay_amount)}</p>
+                  <p className="font-display text-2xl font-bold text-brand-green">{formatPayRate(confirmJob.pay_amount, confirmJob.pay_type)}</p>
+                  {formatPayEstimate(confirmJob.pay_amount, confirmJob.pay_type, confirmJob.duration_hours) && (
+                    <p className="text-[11px] text-brand-text-secondary">{formatPayEstimate(confirmJob.pay_amount, confirmJob.pay_type, confirmJob.duration_hours)}</p>
+                  )}
                 </div>
               </div>
 
@@ -240,46 +414,16 @@ export default function WorkerPage() {
               </div>
             ) : (
               openJobs.map(job => (
-                <JobCard key={job.id} job={job} workerView showClaim onClaim={openConfirm} claiming={claiming === job.id} lang={lang} />
+                <WorkerAvailableCard key={job.id} job={job} onClaim={openConfirm} claiming={claiming === job.id} lang={lang} i={i} />
               ))
             )}
 
             {claimedJobs.length > 0 && (
               <>
                 <h2 className="font-display text-xl font-bold mt-5 mb-3">{i.myClaimedJobs}</h2>
-                {claimedJobs.map(job => {
-                  const checkKey = `checklist_${job.id}_${worker.id}`
-                  const savedChecks = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(checkKey) || '{}') : {}
-                  return (
-                    <div key={job.id} className="bg-white border border-brand-border rounded-card p-4 mb-3 shadow-sm border-l-4 border-l-brand-green">
-                      <div className="font-bold text-sm mb-1">{job.title}</div>
-                      <div className="text-xs text-brand-text-secondary mb-3">
-                        {getDayLabel(job.job_date)} · {formatTime(job.start_time)} – {formatTime(calculateEndTime(job.start_time, job.duration_hours))} · {formatMoney(job.pay_amount)}
-                      </div>
-                      {/* Access code & parking */}
-                      {(job.access_code || job.parking_notes) && (
-                        <div className="bg-brand-muted rounded-lg px-3 py-2.5 mb-3 space-y-1.5">
-                          {job.access_code && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-base">🔑</span>
-                              <div><span className="font-semibold text-brand-text-secondary">{i.accessCode}:</span> <span className="font-bold">{job.access_code}</span></div>
-                            </div>
-                          )}
-                          {job.parking_notes && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-base">🅿️</span>
-                              <div><span className="font-semibold text-brand-text-secondary">{i.parkingNotes}:</span> <span className="font-bold">{job.parking_notes}</span></div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {/* Checklist */}
-                      {job.checklist?.length > 0 && (
-                        <ClaimedJobChecklist job={job} worker={worker} i={i} />
-                      )}
-                    </div>
-                  )
-                })}
+                {claimedJobs.map(job => (
+                  <WorkerClaimedCard key={job.id} job={job} worker={worker} i={i} lang={lang} />
+                ))}
               </>
             )}
           </>
@@ -314,7 +458,7 @@ export default function WorkerPage() {
                         <div className="font-semibold text-[13px]">{job.title}</div>
                         <div className="text-[11px] text-brand-text-secondary">{job.location_city || job.location_address || ''}</div>
                       </div>
-                      <div className="font-display text-sm font-bold text-brand-teal">{formatMoney(job.pay_amount)}</div>
+                      <div className="font-display text-sm font-bold text-brand-teal">{formatPayRate(job.pay_amount, job.pay_type)}</div>
                     </div>
                   ))}
                 </div>
@@ -347,7 +491,7 @@ export default function WorkerPage() {
                   {weekClaimed.map(job => (
                     <div key={job.id} className="flex justify-between text-xs py-1.5 border-b border-brand-muted last:border-0">
                       <span className="text-brand-text-secondary">{getDayLabel(job.job_date)} — {job.title}</span>
-                      <span className="font-semibold">{formatMoney(job.pay_amount)}</span>
+                      <span className="font-semibold">{formatPayRate(job.pay_amount, job.pay_type)}</span>
                     </div>
                   ))}
                 </div>

@@ -44,7 +44,7 @@ export async function POST(request) {
   const supabase = createServerClient()
   const body = await request.json()
 
-  const { title, location_address, location_city, job_date, start_time, duration_hours, pay_amount, job_type, urgency, notes, workers_needed, posted_by } = body
+  const { title, location_address, location_city, job_date, start_time, duration_hours, pay_amount, pay_type, job_type, urgency, notes, workers_needed, posted_by, checklist, access_code, parking_notes } = body
 
   if (!title || !job_date || !start_time || !pay_amount) {
     return NextResponse.json({ error: 'Title, date, time, and pay are required' }, { status: 400 })
@@ -60,11 +60,15 @@ export async function POST(request) {
       start_time,
       duration_hours: duration_hours || 4,
       pay_amount,
+      pay_type: pay_type || 'fixed',
       job_type: job_type || 'residential',
       urgency: urgency || 'today',
       notes,
       workers_needed: workers_needed || 1,
       posted_by,
+      checklist: checklist || [],
+      access_code: access_code || null,
+      parking_notes: parking_notes || null,
     })
     .select('*, claims(*, workers(full_name))')
     .single()

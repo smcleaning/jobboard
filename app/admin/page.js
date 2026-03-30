@@ -36,8 +36,15 @@ function JobForm({ data, setData, onSubmit, onCancel, submitLabel, isEditing }) 
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Pay ($)</label>
-          <input type="number" value={data.pay_amount} onChange={e => setData({...data, pay_amount: e.target.value})} placeholder="125" className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+          <label className="block text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-1.5">Pay Type</label>
+          <div className="flex gap-1.5 mb-2">
+            <button type="button" onClick={() => setData({...data, pay_type: 'fixed'})} className={`flex-1 py-2 text-xs font-bold rounded-btn border-2 transition-all ${(data.pay_type||'fixed')==='fixed' ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-brand-text-secondary border-brand-border'}`}>💵 Fixed</button>
+            <button type="button" onClick={() => setData({...data, pay_type: 'hourly'})} className={`flex-1 py-2 text-xs font-bold rounded-btn border-2 transition-all ${data.pay_type==='hourly' ? 'bg-brand-teal text-white border-brand-teal' : 'bg-white text-brand-text-secondary border-brand-border'}`}>⏱ Per Hour</button>
+          </div>
+          <input type="number" value={data.pay_amount} onChange={e => setData({...data, pay_amount: e.target.value})} placeholder={data.pay_type==='hourly' ? '18' : '125'} className="w-full px-3.5 py-3 border-[1.5px] border-brand-border rounded-btn text-sm focus:outline-none focus:border-brand-teal" />
+          {data.pay_type==='hourly' && data.pay_amount && data.duration_hours && (
+            <p className="text-[11px] text-brand-text-muted mt-1">Estimated total: ${(parseFloat(data.pay_amount)*data.duration_hours).toFixed(0)} for {data.duration_hours}h</p>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -116,7 +123,7 @@ export default function AdminPage() {
   const [showAllWorkers, setShowAllWorkers] = useState(false)
   const [newJob, setNewJob] = useState({
     title: '', location_address: '', location_city: '', job_date: todayStr(),
-    start_time: '11:00', duration_hours: 4, pay_amount: '', job_type: 'airbnb',
+    start_time: '11:00', duration_hours: 4, pay_amount: '', pay_type: 'fixed', job_type: 'airbnb',
     urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '',
   })
 
@@ -169,7 +176,7 @@ export default function AdminPage() {
       if (!res.ok) { showToast(data.error, 'error'); return }
       showToast('✓ Job posted!', 'success')
       setShowNewJob(false)
-      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '' })
+      setNewJob({ title: '', location_address: '', location_city: '', job_date: todayStr(), start_time: '11:00', duration_hours: 4, pay_amount: '', pay_type: 'fixed', job_type: 'airbnb', urgency: 'today', notes: '', workers_needed: 1, checklist: [], access_code: '', parking_notes: '' })
       const appUrl = window.location.origin
       const waText = generateWhatsAppJobText(data, `${appUrl}/worker`)
       window.open(`https://wa.me/?text=${waText}`, '_blank')
